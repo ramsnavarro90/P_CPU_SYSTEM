@@ -1,0 +1,49 @@
+# =============================================================
+# P_CPU_SYSTEM — .gitignore
+# =============================================================
+
+# --- Simulation artifacts ------------------------------------
+*.vvp           # Icarus compiled bytecode
+*.vcd           # GTKWave waveform dumps
+*.fst           # GTKWave compressed waveforms
+*.lxt
+
+# Generated firmware hex (copied by firmware/Makefile)
+sim/firmware.hex
+firmware/firmware.hex
+
+# --- Firmware build outputs ----------------------------------
+firmware/*.o
+firmware/*.elf
+firmware/*.bin
+
+# --- Synthesis / OpenLane (for when we get to Yosys) ---------
+runs/
+*/runs/
+reports/
+*/reports/
+results/
+*/results/
+*.log
+*.blif
+*.edif
+# Keep config.json (OpenLane config), ignore synthesis outputs
+synth/*.json
+/tmp/
+
+# --- Editor / IDE --------------------------------------------
+.vscode/
+*.swp
+*.swo
+*~
+.idea/
+*.kate-swp
+
+# --- Python --------------------------------------------------
+__pycache__/
+*.pyc
+*.pyo
+
+# --- OS ------------------------------------------------------
+.DS_Store
+Thumbs.db
