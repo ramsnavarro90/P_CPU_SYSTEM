@@ -11,6 +11,8 @@ OBJDUMP := $(CROSS)-objdump
 
 CFLAGS  := -march=rv32i -mabi=ilp32 \
            -Os -ffreestanding -nostdlib \
+           -fno-builtin                  \
+           -fno-tree-loop-distribute-patterns \
            -Wall -Wextra
 
 LDFLAGS := -march=rv32i -mabi=ilp32 \

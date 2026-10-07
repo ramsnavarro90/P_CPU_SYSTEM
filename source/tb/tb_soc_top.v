@@ -22,7 +22,9 @@ module tb_soc_top;
     // -------------------------------------------------------------------------
     // Parameters
     // -------------------------------------------------------------------------
-    parameter TIMEOUT     = 10_000;        // max cycles before fail
+    parameter integer CLK_FREQ  = 100_000;   // CLKS_PER_BIT = 10
+    parameter integer BAUD_RATE = 10_000;
+    parameter TIMEOUT     = 500_000;        // max cycles before fail
     parameter CLK_PERIOD  = 10;            // ns
 
     // -------------------------------------------------------------------------
@@ -32,20 +34,24 @@ module tb_soc_top;
     wire        cpu_trap;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
+    wire uart_tx;
     reg  [31:0] gpio_in;
 
     // -------------------------------------------------------------------------
     // DUT instantiation
     // -------------------------------------------------------------------------
     soc_top #(
-        .ROM_FILE("firmware.hex")
+        .ROM_FILE("firmware.hex"),
+        .CLK_FREQ (CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE)
     ) u_dut (
         .clk     (clk),
         .rst_n   (rst_n),
         .cpu_trap(cpu_trap),
         .gpio_out(gpio_out),
         .gpio_in (gpio_in),
-        .gpio_dir(gpio_dir)
+        .gpio_dir(gpio_dir),
+        .uart_tx (uart_tx)
     );
 
     // -------------------------------------------------------------------------

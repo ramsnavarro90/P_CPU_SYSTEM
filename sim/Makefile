@@ -17,7 +17,7 @@ PICO := $(SRC)/picorv32
 
 .PHONY: all sim_rom sim_sram sim_soc clean
 
-all: sim_rom sim_sram sim_soc
+all: sim_rom sim_sram sim_uart sim_soc
 
 # --- ROM unit test ---
 sim_rom: tb_rom.vvp
@@ -33,6 +33,13 @@ sim_sram: tb_sram.vvp
 tb_sram.vvp: $(SRC)/wb_sram.v $(TB)/tb_wb_sram.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
+# --- UART unit test ---
+sim_uart: tb_uart.vvp
+	$(VVP) $<
+
+tb_uart.vvp: $(SRC)/wb_uart.v $(TB)/tb_wb_uart.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+
 # --- Full SoC system test ---
 sim_soc: tb_soc.vvp
 	$(VVP) $<
@@ -41,6 +48,7 @@ tb_soc.vvp: $(PICO)/picorv32.v   \
             $(SRC)/wb_rom.v       \
             $(SRC)/wb_sram.v      \
             $(SRC)/wb_gpio.v      \
+            $(SRC)/wb_uart.v      \
             $(SRC)/soc_top.v      \
             $(TB)/tb_soc_top.v
 	$(IVERILOG) $(FLAGS) -o $@ $^

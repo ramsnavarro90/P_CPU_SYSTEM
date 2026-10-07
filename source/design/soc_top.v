@@ -13,7 +13,9 @@
 `default_nettype none
 
 module soc_top #(
-    parameter ROM_FILE = "firmware.hex"
+    parameter ROM_FILE = "firmware.hex",
+    parameter integer CLK_FREQ  = 50_000_000,
+    parameter integer BAUD_RATE = 115_200
 )(
     input  wire        clk,
     input  wire        rst_n,
@@ -22,7 +24,8 @@ module soc_top #(
     // GPIO pads
     output wire [31:0] gpio_out,
     input  wire [31:0] gpio_in,
-    output wire [31:0] gpio_dir
+    output wire [31:0] gpio_dir,
+    output wire        uart_tx
 );
 
 // -----------------------------------------------------------------------------
@@ -49,17 +52,20 @@ wire        rom_ack,    sram_ack,    gpio_ack;
 wire sel_rom  = (wbm_adr[31:12] == 20'h00000);
 wire sel_sram = (wbm_adr[31:16] == 16'h8000 );
 wire sel_gpio = (wbm_adr[31: 8] == 24'h900000);
+wire sel_uart = (wbm_adr[31:16] == 16'hA000);
 
 wire rom_stb  = wbm_stb & sel_rom;
 wire sram_stb = wbm_stb & sel_sram;
 wire gpio_stb = wbm_stb & sel_gpio;
+wire uart_stb = wbm_stb & sel_uart;
 
 assign wbm_dat_s2m = sel_rom  ? rom_dat_o  :
                      sel_sram ? sram_dat_o :
                      sel_gpio ? gpio_dat_o :
+                     sel_uart ? uart_dat_o :
                      32'hDEAD_BEEF;
 
-assign wbm_ack = rom_ack | sram_ack | gpio_ack;
+assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack;
 
 // -----------------------------------------------------------------------------
 // CPU — PicoRV32 (Wishbone wrapper)
@@ -133,6 +139,29 @@ wb_gpio u_gpio (
     .gpio_out(gpio_out),
     .gpio_in (gpio_in),
     .gpio_dir(gpio_dir)
+);
+
+// -----------------------------------------------------------------------------
+// UART
+// -----------------------------------------------------------------------------
+wire [31:0] uart_dat_o;
+wire        uart_ack;
+
+wb_uart #(
+    .CLK_FREQ (CLK_FREQ),
+    .BAUD_RATE(BAUD_RATE)
+) u_uart (
+    .wb_clk_i(clk),
+    .wb_rst_i(~rst_n),
+    .wb_cyc_i(wbm_cyc),
+    .wb_stb_i(uart_stb),
+    .wb_we_i (wbm_we),
+    .wb_sel_i(wbm_sel),
+    .wb_adr_i(wbm_adr),
+    .wb_dat_i(wbm_dat_m2s),
+    .wb_dat_o(uart_dat_o),
+    .wb_ack_o(uart_ack),
+    .uart_tx (uart_tx)
 );
 
 endmodule
