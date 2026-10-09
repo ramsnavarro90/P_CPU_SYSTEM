@@ -50,6 +50,7 @@ tb_soc.vvp: $(PICO)/picorv32.v   \
             $(SRC)/wb_gpio.v      \
             $(SRC)/wb_uart.v      \
             $(SRC)/soc_top.v      \
+			$(TB)/uart_monitor.v  \
             $(TB)/tb_soc_top.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
