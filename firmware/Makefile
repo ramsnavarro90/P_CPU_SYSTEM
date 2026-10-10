@@ -35,8 +35,9 @@ main.o: $(MAIN_SRC)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # --- Link ---
+# Use of -lgcc is required for __mulsi3 and __divsi3 (software multiply/divide)
 $(TARGET).elf: crt0.o main.o
-	$(CC) $(LDFLAGS) $^ -o $@
+	$(CC) $(LDFLAGS) $^ -lgcc -o $@
 
 # --- Raw binary ---
 $(TARGET).bin: $(TARGET).elf
