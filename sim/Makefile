@@ -15,7 +15,7 @@ SRC  := ../source/design
 TB   := ../source/tb
 PICO := $(SRC)/picorv32
 
-.PHONY: all sim_rom sim_sram sim_soc clean
+.PHONY: all sim_rom sim_sram sim_uart sim_soc sim_arithmetic clean
 
 all: sim_rom sim_sram sim_uart sim_soc
 
@@ -54,5 +54,19 @@ tb_soc.vvp: $(PICO)/picorv32.v   \
             $(TB)/tb_soc_top.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
+# --- Arithmetic operations test ---
+sim_arithmetic: tb_arithmetic.vvp
+	$(VVP) $<
+
+tb_arithmetic.vvp: $(PICO)/picorv32.v   \
+                   $(SRC)/wb_rom.v       \
+                   $(SRC)/wb_sram.v      \
+                   $(SRC)/wb_gpio.v      \
+                   $(SRC)/wb_uart.v      \
+                   $(SRC)/soc_top.v      \
+                   $(TB)/uart_monitor.v  \
+                   $(TB)/tb_soc_arithmetic.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+	
 clean:
 	rm -f *.vvp *.vcd
