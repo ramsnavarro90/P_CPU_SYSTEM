@@ -9,13 +9,14 @@ CC      := $(CROSS)-gcc
 OBJCOPY := $(CROSS)-objcopy
 OBJDUMP := $(CROSS)-objdump
 
-CFLAGS  := -march=rv32i -mabi=ilp32 \
+# Compilation flags - add mul/div hardware support for the arithmetic test app
+CFLAGS  := -march=rv32im -mabi=ilp32 \
            -Os -ffreestanding -nostdlib \
            -fno-builtin                 \
            -fno-tree-loop-distribute-patterns \
            -Wall -Wextra
 
-LDFLAGS := -march=rv32i -mabi=ilp32 \
+LDFLAGS := -march=rv32im -mabi=ilp32 \
            -nostdlib -T link.ld
 
 APP      ?= default
@@ -35,7 +36,9 @@ main.o: $(MAIN_SRC)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # --- Link ---
-# Use of -lgcc is required for __mulsi3 and __divsi3 (software multiply/divide)
+# Use of -lgcc is required for __mulsi3 and __divsi3 for software multiply/divide
+# The use of -lgcc is only required if the firmware app uses software multiply/divide
+# (i.e. if the CPU does not have hardware multiply/divide support)
 $(TARGET).elf: crt0.o main.o
 	$(CC) $(LDFLAGS) $^ -lgcc -o $@
 

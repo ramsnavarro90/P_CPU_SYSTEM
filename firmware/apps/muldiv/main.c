@@ -147,6 +147,30 @@ int main(void) {
     print_divmod(65535, 100);
     print_divmod(999999, 13);
 
+    // -------------------------------------------------------------------------
+    // Arithmetic benchmark — 10,000 iterations, no UART during computation
+    // -------------------------------------------------------------------------
+    // uart_print("\r\n-- Benchmark: 10000 iterations --\r\n");
+
+    // volatile unsigned int result = 0;
+    // unsigned int iter;
+
+    // // Start marker on GPIO — testbench can measure this window
+    // GPIO_DATA = 0xBEEF0000;
+
+    // for (iter = 0; iter < 10000; iter++) {
+    //     result += (iter * 31);          // MUL
+    //     result += (result / 7);         // DIV
+    //     result += (result % 13);        // MOD
+    // }
+
+    // // End marker
+    // GPIO_DATA = 0xBEEF0001;
+
+    // uart_print("  result (anti-optimization): ");
+    // uart_print_hex(result);
+    // uart_print("\r\n");
+
     uart_print("\r\n=== Done ===\r\n");
 
     // Completion sentinel for testbench

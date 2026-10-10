@@ -106,7 +106,7 @@ int main(void) {
     unsigned int b = 0x00C0FFEE;
     unsigned int i;
 
-    uart_print("=== RV32I Arithmetic Demo v2===\r\n\r\n");
+    uart_print("=== RV32I Arithmetic Demo ===\r\n\r\n");
 
     // --- Addition
     uart_print("-- Addition & Subtraction --\r\n");

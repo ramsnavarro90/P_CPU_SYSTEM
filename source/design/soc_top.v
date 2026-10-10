@@ -71,7 +71,8 @@ assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack;
 // CPU — PicoRV32 (Wishbone wrapper)
 // -----------------------------------------------------------------------------
 picorv32_wb #(
-    .ENABLE_MUL          (0),
+    .ENABLE_MUL          (1),   // <-- enables picorv32_pcpi_mul
+    .ENABLE_DIV          (1),   // <-- enables picorv32_pcpi_div
     .ENABLE_REGS_DUALPORT(1)
 ) u_cpu (
     .wb_clk_i  (clk),
