@@ -4,7 +4,11 @@
 // Memory map:
 //   0x0000_0000 – 0x0000_0FFF  Boot ROM  (4 KB, read-only)
 //   0x8000_0000 – 0x8000_FFFF  Data SRAM (64 KB)
-//   0x9000_0000 – 0x9000_00FF  GPIO
+//   0x9000_0000 – 0x9000_00FF  GPIO      (DATA + DIR)
+//   0xA000_0000 – 0xA000_00FF  UART TX   (DATA + STATUS)
+//   0xB000_0000 – 0xB000_00FF  CFG       (SOC_ID, SOC_VER,
+//                                         UART_CTRL, UART_BAUD,
+//                                         GPIO_CTRL)
 //
 // Parameters:
 //   ROM_FILE : hex image loaded by wb_rom via $readmemh
@@ -53,19 +57,30 @@ wire sel_rom  = (wbm_adr[31:12] == 20'h00000);
 wire sel_sram = (wbm_adr[31:16] == 16'h8000 );
 wire sel_gpio = (wbm_adr[31: 8] == 24'h900000);
 wire sel_uart = (wbm_adr[31:16] == 16'hA000);
+wire sel_cfg  = (wbm_adr[31:16] == 16'hB000);
+wire cfg_stb  = wbm_stb & sel_cfg;
 
 wire rom_stb  = wbm_stb & sel_rom;
 wire sram_stb = wbm_stb & sel_sram;
 wire gpio_stb = wbm_stb & sel_gpio;
 wire uart_stb = wbm_stb & sel_uart;
 
+// Config signals
+wire [31:0] cfg_dat_o;
+wire        cfg_ack;
+wire        uart_en;
+wire [15:0] uart_baud_div;
+wire        gpio_en;
+
+// Read mux
 assign wbm_dat_s2m = sel_rom  ? rom_dat_o  :
                      sel_sram ? sram_dat_o :
                      sel_gpio ? gpio_dat_o :
                      sel_uart ? uart_dat_o :
+                     sel_cfg  ? cfg_dat_o  :
                      32'hDEAD_BEEF;
 
-assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack;
+assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack | cfg_ack;
 
 // -----------------------------------------------------------------------------
 // CPU — PicoRV32 (Wishbone wrapper)
@@ -124,6 +139,29 @@ wb_sram #(
 );
 
 // -----------------------------------------------------------------------------
+// Config
+// -----------------------------------------------------------------------------
+
+wb_cfg #(
+    .CLK_FREQ (CLK_FREQ),
+    .BAUD_RATE(BAUD_RATE)
+) u_cfg (
+    .wb_clk_i    (clk),
+    .wb_rst_i    (~rst_n),
+    .wb_cyc_i    (wbm_cyc),
+    .wb_stb_i    (cfg_stb),
+    .wb_we_i     (wbm_we),
+    .wb_sel_i    (wbm_sel),
+    .wb_adr_i    (wbm_adr),
+    .wb_dat_i    (wbm_dat_m2s),
+    .wb_dat_o    (cfg_dat_o),
+    .wb_ack_o    (cfg_ack),
+    .uart_en     (uart_en),
+    .uart_baud_div(uart_baud_div),
+    .gpio_en     (gpio_en)
+);
+
+// -----------------------------------------------------------------------------
 // GPIO
 // -----------------------------------------------------------------------------
 wb_gpio u_gpio (
@@ -137,6 +175,7 @@ wb_gpio u_gpio (
     .wb_dat_i(wbm_dat_m2s),
     .wb_dat_o(gpio_dat_o),
     .wb_ack_o(gpio_ack),
+    .gpio_en(gpio_en),
     .gpio_out(gpio_out),
     .gpio_in (gpio_in),
     .gpio_dir(gpio_dir)
@@ -148,10 +187,7 @@ wb_gpio u_gpio (
 wire [31:0] uart_dat_o;
 wire        uart_ack;
 
-wb_uart #(
-    .CLK_FREQ (CLK_FREQ),
-    .BAUD_RATE(BAUD_RATE)
-) u_uart (
+wb_uart u_uart (
     .wb_clk_i(clk),
     .wb_rst_i(~rst_n),
     .wb_cyc_i(wbm_cyc),
@@ -162,6 +198,8 @@ wb_uart #(
     .wb_dat_i(wbm_dat_m2s),
     .wb_dat_o(uart_dat_o),
     .wb_ack_o(uart_ack),
+    .baud_div(uart_baud_div),
+    .uart_en (uart_en),
     .uart_tx (uart_tx)
 );
 

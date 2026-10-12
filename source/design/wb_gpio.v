@@ -23,6 +23,7 @@ module wb_gpio (
     output reg  [31:0] wb_dat_o,
     output reg         wb_ack_o,
     // Physical pads
+    input  wire        gpio_en,
     output wire [31:0] gpio_out,
     input  wire [31:0] gpio_in,
     output wire [31:0] gpio_dir
@@ -31,8 +32,8 @@ module wb_gpio (
     reg [31:0] data_reg;
     reg [31:0] dir_reg;
 
-    assign gpio_out = data_reg;
-    assign gpio_dir = dir_reg;
+    assign gpio_out = gpio_en ? data_reg : 32'b0;
+    assign gpio_dir = gpio_en ? dir_reg  : 32'b0;
 
     wire access = wb_cyc_i && wb_stb_i && !wb_ack_o;
 

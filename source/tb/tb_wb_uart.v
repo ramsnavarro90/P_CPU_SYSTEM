@@ -23,8 +23,7 @@ module tb_wb_uart;
     // -------------------------------------------------------------------------
     localparam integer CLK_FREQ     = 100_000;
     localparam integer BAUD_RATE    = 10_000;
-    localparam integer CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;   // 10
-    localparam integer CLK_PERIOD   = 10;                      // ns
+    localparam [15:0]  BAUD_DIV     = CLK_FREQ / BAUD_RATE;
 
     // -------------------------------------------------------------------------
     // DUT signals
@@ -40,10 +39,7 @@ module tb_wb_uart;
     // -------------------------------------------------------------------------
     // DUT
     // -------------------------------------------------------------------------
-    wb_uart #(
-        .CLK_FREQ (CLK_FREQ),
-        .BAUD_RATE(BAUD_RATE)
-    ) u_dut (
+    wb_uart u_dut (
         .wb_clk_i(clk),
         .wb_rst_i(rst),
         .wb_cyc_i(cyc),
@@ -54,6 +50,8 @@ module tb_wb_uart;
         .wb_dat_i(dat_i),
         .wb_dat_o(dat_o),
         .wb_ack_o(ack),
+        .baud_div(BAUD_DIV),
+        .uart_en (1'b1),
         .uart_tx (uart_tx)
     );
 

@@ -82,5 +82,20 @@ tb_muldiv.vvp: $(PICO)/picorv32.v   \
                $(TB)/tb_soc_muldiv.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
+# --- Configuration register test ---
+sim_cfg: tb_cfg.vvp
+	$(VVP) $<
+
+tb_cfg.vvp: $(PICO)/picorv32.v   \
+            $(SRC)/wb_rom.v       \
+            $(SRC)/wb_sram.v      \
+            $(SRC)/wb_gpio.v      \
+            $(SRC)/wb_uart.v      \
+            $(SRC)/wb_cfg.v       \
+            $(SRC)/soc_top.v      \
+            $(TB)/uart_monitor.v  \
+            $(TB)/tb_soc_cfg.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+
 clean:
 	rm -f *.vvp *.vcd

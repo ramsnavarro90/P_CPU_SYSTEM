@@ -15,10 +15,7 @@
 
 `default_nettype none
 
-module wb_uart #(
-    parameter integer CLK_FREQ  = 50_000_000,
-    parameter integer BAUD_RATE = 115_200
-)(
+module wb_uart (
     input  wire        wb_clk_i,
     input  wire        wb_rst_i,
     input  wire        wb_cyc_i,
@@ -29,14 +26,12 @@ module wb_uart #(
     input  wire [31:0] wb_dat_i,
     output reg  [31:0] wb_dat_o,
     output reg         wb_ack_o,
-    // UART TX line (idles HIGH)
+    // Runtime config from wb_cfg
+    input  wire [15:0] baud_div,   // CLK_FREQ / BAUD_RATE
+    input  wire        uart_en,    // TX enable
+    // UART TX line
     output reg         uart_tx
 );
-
-    // -------------------------------------------------------------------------
-    // Baud rate
-    // -------------------------------------------------------------------------
-    localparam integer CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
 
     // -------------------------------------------------------------------------
     // TX state machine encoding
@@ -48,7 +43,7 @@ module wb_uart #(
         TX_STOP  = 2'd3;
 
     reg  [1:0]                    tx_state;
-    reg  [$clog2(CLKS_PER_BIT):0] baud_cnt;
+    reg  [15:0]                   baud_cnt;
     reg  [7:0]                    tx_shift;
     reg  [2:0]                    bit_idx;
     reg                           tx_busy;
@@ -100,9 +95,10 @@ module wb_uart #(
         end else begin
             case (tx_state)
 
+                // TX_IDLE: gate new transmissions on uart_en
                 TX_IDLE: begin
                     uart_tx <= 1'b1;
-                    if (tx_start) begin
+                    if (tx_start && uart_en) begin
                         tx_shift <= wb_dat_i[7:0];  // capture byte
                         tx_busy  <= 1'b1;
                         baud_cnt <= 0;
@@ -112,7 +108,7 @@ module wb_uart #(
 
                 TX_START: begin
                     uart_tx <= 1'b0;                // start bit (LOW)
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == baud_div - 1) begin
                         baud_cnt <= 0;
                         bit_idx  <= 0;
                         tx_state <= TX_DATA;
@@ -123,7 +119,7 @@ module wb_uart #(
 
                 TX_DATA: begin
                     uart_tx <= tx_shift[0];         // LSB first
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == baud_div - 1) begin
                         baud_cnt <= 0;
                         tx_shift <= {1'b0, tx_shift[7:1]};   // shift right
                         if (bit_idx == 3'd7)
@@ -137,7 +133,7 @@ module wb_uart #(
 
                 TX_STOP: begin
                     uart_tx <= 1'b1;                // stop bit (HIGH)
-                    if (baud_cnt == CLKS_PER_BIT - 1) begin
+                    if (baud_cnt == baud_div - 1) begin
                         baud_cnt <= 0;
                         tx_busy  <= 1'b0;
                         tx_state <= TX_IDLE;
