@@ -21,19 +21,26 @@ module tb_soc_cfg;
     reg        clk, rst_n;
     wire       cpu_trap;
     wire       uart_tx;
+    reg         uart_rx;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
     reg  [31:0] gpio_in;
+    wire        timer_irq;
 
     soc_top #(
         .ROM_FILE (ROM_FILE),
         .CLK_FREQ (CLK_FREQ),
         .BAUD_RATE(BAUD_RATE)
     ) u_dut (
-        .clk     (clk),   .rst_n   (rst_n),
+        .clk     (clk),
+        .rst_n   (rst_n),
         .cpu_trap(cpu_trap),
+        .gpio_out(gpio_out),
+        .gpio_in(gpio_in),
+        .gpio_dir(gpio_dir),
         .uart_tx (uart_tx),
-        .gpio_out(gpio_out), .gpio_in(gpio_in), .gpio_dir(gpio_dir)
+        .uart_rx (uart_rx),
+        .timer_irq(timer_irq)
     );
 
     uart_monitor #(
@@ -63,6 +70,7 @@ module tb_soc_cfg;
     end
 
     initial begin
+        uart_rx = 1;   // idle HIGH
         gpio_in = 32'b0; rst_n = 0;
         repeat(8) @(posedge clk);
         rst_n = 1;

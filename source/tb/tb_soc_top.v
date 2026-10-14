@@ -34,8 +34,10 @@ module tb_soc_top;
     wire        cpu_trap;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
-    wire uart_tx;
     reg  [31:0] gpio_in;
+    wire        uart_tx;
+    reg         uart_rx;
+    wire        timer_irq;
 
     // -------------------------------------------------------------------------
     // DUT instantiation
@@ -51,7 +53,9 @@ module tb_soc_top;
         .gpio_out(gpio_out),
         .gpio_in (gpio_in),
         .gpio_dir(gpio_dir),
-        .uart_tx (uart_tx)
+        .uart_tx (uart_tx),
+        .uart_rx (uart_rx),
+        .timer_irq(timer_irq)
     );
 
     // -------------------------------------------------------------------------
@@ -111,6 +115,7 @@ module tb_soc_top;
     reg [31:0] prev_gpio;
 
     initial begin
+        uart_rx = 1;
         gpio_in = 32'hCAFE_1234;   // arbitrary input value
         rst_n   = 1'b0;
         repeat(8) @(posedge clk);  // hold reset for 8 cycles

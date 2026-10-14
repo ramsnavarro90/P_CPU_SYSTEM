@@ -1,16 +1,5 @@
 // -----------------------------------------------------------------------------
-// tb_wb_uart.v — Directed testbench for wb_uart
-//
-// Uses accelerated parameters to keep simulation fast:
-//   CLK_FREQ = 100_000 Hz  →  CLK_PERIOD = 10 ns
-//   BAUD_RATE = 10_000     →  CLKS_PER_BIT = 10
-//
-// Tests:
-//   1. STATUS reads tx_busy correctly
-//   2. TX byte 0x55 (01010101) — alternating bits, easy to verify
-//   3. TX byte 0xA5 (10100101) — verify LSB-first framing
-//   4. Read-back of DATA register returns last sent byte
-//   5. Write while busy is dropped, ACK still asserted
+// tb_wb_uart.v — UART TX+RX unit testbench
 // -----------------------------------------------------------------------------
 
 `timescale 1ns/1ps
@@ -18,16 +7,12 @@
 
 module tb_wb_uart;
 
-    // -------------------------------------------------------------------------
-    // Accelerated timing for simulation
-    // -------------------------------------------------------------------------
     localparam integer CLK_FREQ     = 100_000;
     localparam integer BAUD_RATE    = 10_000;
-    localparam [15:0]  BAUD_DIV     = CLK_FREQ / BAUD_RATE;
+    localparam integer CLKS_PER_BIT = CLK_FREQ / BAUD_RATE;
+    localparam [15:0]  BAUD_DIV     = CLKS_PER_BIT;
+    localparam integer CLK_PERIOD   = 10;
 
-    // -------------------------------------------------------------------------
-    // DUT signals
-    // -------------------------------------------------------------------------
     reg         clk, rst;
     reg         cyc, stb, we;
     reg  [3:0]  sel;
@@ -35,10 +20,8 @@ module tb_wb_uart;
     wire [31:0] dat_o;
     wire        ack;
     wire        uart_tx;
+    reg         uart_rx_tb;     // testbench drives RX line
 
-    // -------------------------------------------------------------------------
-    // DUT
-    // -------------------------------------------------------------------------
     wb_uart u_dut (
         .wb_clk_i(clk),
         .wb_rst_i(rst),
@@ -52,25 +35,20 @@ module tb_wb_uart;
         .wb_ack_o(ack),
         .baud_div(BAUD_DIV),
         .uart_en (1'b1),
-        .uart_tx (uart_tx)
+        .uart_tx (uart_tx),
+        .uart_rx (uart_rx_tb)
     );
 
-    // -------------------------------------------------------------------------
-    // Clock
-    // -------------------------------------------------------------------------
     initial clk = 0;
     always  #(CLK_PERIOD/2) clk = ~clk;
 
-    // -------------------------------------------------------------------------
-    // Waveform dump
-    // -------------------------------------------------------------------------
     initial begin
         $dumpfile("tb_wb_uart.vcd");
         $dumpvars(0, tb_wb_uart);
     end
 
     // -------------------------------------------------------------------------
-    // WB write / read tasks
+    // WB tasks
     // -------------------------------------------------------------------------
     task wb_write;
         input [31:0] addr, data;
@@ -80,8 +58,7 @@ module tb_wb_uart;
             cyc = 1; stb = 1; we = 1;
             adr = addr; dat_i = data; sel = byte_sel;
             @(posedge clk); while (!ack) @(posedge clk);
-            @(negedge clk);
-            cyc = 0; stb = 0; we = 0;
+            @(negedge clk); cyc = 0; stb = 0; we = 0;
         end
     endtask
 
@@ -94,37 +71,50 @@ module tb_wb_uart;
             cyc = 1; stb = 1; we = 0; sel = 4'hF; adr = addr;
             @(posedge clk); while (!ack) @(posedge clk);
             data = dat_o;
-            @(negedge clk);
-            cyc = 0; stb = 0;
+            @(negedge clk); cyc = 0; stb = 0;
         end
     endtask
 
     // -------------------------------------------------------------------------
-    // UART receive task — samples uart_tx and reconstructs the byte
+    // TX monitor task (same as before)
     // -------------------------------------------------------------------------
     reg [7:0] rx_byte;
-    integer   i;
+    integer   bit_i;
 
     task uart_receive;
         output [7:0] data;
-        integer      bit_i;     // local — avoids shared 'i' in fork..join
         begin
-            // Wait for start bit falling edge
             @(negedge uart_tx);
-            // Delay 1.5 bit periods — land in the middle of bit 0
-            repeat(CLK_PERIOD * CLKS_PER_BIT + CLK_PERIOD * CLKS_PER_BIT / 2) #1;
-            // Sample 8 data bits, LSB first
+            repeat(CLKS_PER_BIT + CLKS_PER_BIT/2) @(posedge clk);
             for (bit_i = 0; bit_i < 8; bit_i = bit_i + 1) begin
                 data[bit_i] = uart_tx;
-                repeat(CLK_PERIOD * CLKS_PER_BIT) #1;
+                repeat(CLKS_PER_BIT) @(posedge clk);
             end
-            // Verify stop bit (we're ~0.5 bit period into it)
             if (!uart_tx) begin
-                $display("FAIL: stop bit not HIGH"); $finish;
+                $display("FAIL: TX stop bit not HIGH"); $finish;
             end
-            // Wait for stop bit to fully complete before releasing the task
-            // Without this, the next wb_write hits a busy UART and TX never fires
-            repeat(CLK_PERIOD * CLKS_PER_BIT) #1;
+            repeat(CLKS_PER_BIT) @(posedge clk);
+        end
+    endtask
+
+    // -------------------------------------------------------------------------
+    // RX driver task — drives uart_rx_tb with an 8N1 frame
+    // -------------------------------------------------------------------------
+    task uart_send;
+        input [7:0] data;
+        integer     sbit_i;
+        begin
+            // Start bit
+            @(negedge clk); uart_rx_tb = 0;
+            repeat(CLKS_PER_BIT) @(posedge clk);
+            // 8 data bits (LSB first)
+            for (sbit_i = 0; sbit_i < 8; sbit_i = sbit_i + 1) begin
+                @(negedge clk); uart_rx_tb = data[sbit_i];
+                repeat(CLKS_PER_BIT) @(posedge clk);
+            end
+            // Stop bit
+            @(negedge clk); uart_rx_tb = 1;
+            repeat(CLKS_PER_BIT) @(posedge clk);
         end
     endtask
 
@@ -133,57 +123,82 @@ module tb_wb_uart;
     // -------------------------------------------------------------------------
     initial begin
         {cyc, stb, we, sel, adr, dat_i} = 0;
+        uart_rx_tb = 1;   // idle HIGH
         rst = 1;
         repeat(4) @(posedge clk);
         rst = 0;
 
-        // --- Test 1: TX idle → uart_tx must be HIGH
-        @(posedge clk);
+        // === TX tests (same as before) =======================================
         if (!uart_tx) begin
             $display("FAIL T1: uart_tx not HIGH at idle"); $finish;
         end
         $display("PASS T1: uart_tx idles HIGH");
 
-        // --- Test 2: STATUS reads not busy at idle
         wb_read(32'hA000_0004, rd);
         if (rd[0] !== 1'b0) begin
-            $display("FAIL T2: tx_busy asserted at idle"); $finish;
+            $display("FAIL T2: tx_busy at idle"); $finish;
         end
-        $display("PASS T2: STATUS.tx_busy = 0 at idle");
+        $display("PASS T2: tx_busy=0 at idle");
 
-        // --- Test 3: transmit 0x55 and verify frame
         fork
             wb_write(32'hA000_0000, 32'h55, 4'b0001);
-            begin
-                uart_receive(rx_byte);
+            begin uart_receive(rx_byte);
                 if (rx_byte !== 8'h55) begin
-                    $display("FAIL T3: expected 0x55, got 0x%0h", rx_byte);
-                    $finish;
+                    $display("FAIL T3: TX expected 0x55, got 0x%0h", rx_byte); $finish;
                 end
-                $display("PASS T3: received 0x55 correctly");
+                $display("PASS T3: TX 0x55 correct");
             end
         join
 
-        // --- Test 4: transmit 0xA5 and verify frame
         fork
             wb_write(32'hA000_0000, 32'hA5, 4'b0001);
-            begin
-                uart_receive(rx_byte);
+            begin uart_receive(rx_byte);
                 if (rx_byte !== 8'hA5) begin
-                    $display("FAIL T4: expected 0xA5, got 0x%0h", rx_byte);
-                    $finish;
+                    $display("FAIL T4: TX expected 0xA5, got 0x%0h", rx_byte); $finish;
                 end
-                $display("PASS T4: received 0xA5 correctly");
+                $display("PASS T4: TX 0xA5 correct");
             end
         join
 
-        // --- Test 5: DATA read-back
-        wb_read(32'hA000_0000, rd);
-        if (rd[7:0] !== 8'hA5) begin
-            $display("FAIL T5: read-back expected 0xA5, got 0x%0h", rd[7:0]);
-            $finish;
+        // === RX tests =========================================================
+
+        // T5: RX_STATUS idle — rx_ready must be 0
+        wb_read(32'hA000_000C, rd);
+        if (rd[0] !== 1'b0) begin
+            $display("FAIL T5: rx_ready set at idle"); $finish;
         end
-        $display("PASS T5: DATA read-back = 0xA5");
+        $display("PASS T5: rx_ready=0 at idle");
+
+        // T6: send 0xB7, verify RX_STATUS and RX_DATA
+        uart_send(8'hB7);
+        // Wait long enough for byte to complete (stop bit + margin)
+        repeat(CLKS_PER_BIT * 2) @(posedge clk);
+        wb_read(32'hA000_000C, rd);  // RX_STATUS
+        if (rd[0] !== 1'b1) begin
+            $display("FAIL T6: rx_ready not set after receive"); $finish;
+        end
+        $display("PASS T6: rx_ready=1 after receiving 0xB7");
+        wb_read(32'hA000_0008, rd);  // RX_DATA (clears rx_ready)
+        if (rd[7:0] !== 8'hB7) begin
+            $display("FAIL T7: RX_DATA expected 0xB7, got 0x%0h", rd[7:0]); $finish;
+        end
+        $display("PASS T7: RX_DATA = 0xB7");
+
+        // T8: rx_ready cleared after reading RX_DATA
+        wb_read(32'hA000_000C, rd);
+        if (rd[0] !== 1'b0) begin
+            $display("FAIL T8: rx_ready not cleared after read"); $finish;
+        end
+        $display("PASS T8: rx_ready cleared after RX_DATA read");
+
+        // T9: send 0xC3 and verify
+        uart_send(8'hC3);
+        repeat(CLKS_PER_BIT * 2) @(posedge clk);
+        wb_read(32'hA000_0008, rd);
+        if (rd[7:0] !== 8'hC3) begin
+            $display("FAIL T9: RX_DATA expected 0xC3, got 0x%0h", rd[7:0]); $finish;
+        end
+        $display("PASS T9: RX_DATA = 0xC3");
 
         $display("--- wb_uart: all tests passed ---");
         $finish;

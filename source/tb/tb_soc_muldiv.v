@@ -12,12 +12,14 @@ module tb_soc_muldiv;
     parameter integer TIMEOUT   = 50_000_000;
     parameter         ROM_FILE  = "firmware.hex";
 
-    reg        clk, rst_n;
-    wire       cpu_trap;
-    wire       uart_tx;
+    reg         clk, rst_n;
+    wire        cpu_trap;
+    wire        uart_tx;
+    reg         uart_rx;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
     reg  [31:0] gpio_in;
+    wire        timer_irq;
 
     soc_top #(
         .ROM_FILE (ROM_FILE),
@@ -27,10 +29,12 @@ module tb_soc_muldiv;
         .clk     (clk),
         .rst_n   (rst_n),
         .cpu_trap(cpu_trap),
-        .uart_tx (uart_tx),
         .gpio_out(gpio_out),
         .gpio_in (gpio_in),
-        .gpio_dir(gpio_dir)
+        .gpio_dir(gpio_dir),
+        .uart_tx (uart_tx),
+        .uart_rx  (uart_rx),
+        .timer_irq(timer_irq)
     );
 
     uart_monitor #(
@@ -45,10 +49,10 @@ module tb_soc_muldiv;
     initial clk = 0;
     always  #5 clk = ~clk;
 
-//    initial begin
-//        $dumpfile("tb_soc_muldiv.vcd");
-//        $dumpvars(0, tb_soc_muldiv);
-//    end
+   initial begin
+       $dumpfile("tb_soc_muldiv.vcd");
+       $dumpvars(0, tb_soc_muldiv);
+   end
 
     always @(posedge clk) begin
         if (cpu_trap) begin
@@ -68,6 +72,7 @@ module tb_soc_muldiv;
     end
 
     initial begin
+        uart_rx = 1;   // idle HIGH
         gpio_in = 32'b0;
         rst_n   = 1'b0;
         repeat(8) @(posedge clk);

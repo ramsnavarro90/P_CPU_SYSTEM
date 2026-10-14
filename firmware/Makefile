@@ -14,6 +14,7 @@ CFLAGS  := -march=rv32im -mabi=ilp32 \
            -Os -ffreestanding -nostdlib \
            -fno-builtin                 \
            -fno-tree-loop-distribute-patterns \
+		   -I include                       \
            -Wall -Wextra
 
 LDFLAGS := -march=rv32im -mabi=ilp32 \

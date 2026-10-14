@@ -1,101 +1,118 @@
 # sim/Makefile — Icarus Verilog simulation
 #
-# Targets:
-#   make sim_rom   — wb_rom unit test
-#   make sim_sram  — wb_sram unit test
-#   make sim_soc   — full SoC system test
-#   make all       — run all three
-#   make clean     — remove build artifacts
+# Each sim_<app> target compiles its firmware automatically before simulating.
+# Unit tests (sim_rom, sim_sram, sim_uart, sim_timer) need no firmware.
 
-IVERILOG := iverilog
-VVP      := vvp
-FLAGS    := -g2005-sv
+IVERILOG     := iverilog
+VVP          := vvp
+FLAGS        := -g2005-sv
+FIRMWARE_DIR := ../firmware
 
 SRC  := ../source/design
 TB   := ../source/tb
 PICO := $(SRC)/picorv32
 
-.PHONY: all sim_rom sim_sram sim_uart sim_soc sim_arithmetic sim_muldiv clean
+# -----------------------------------------------------------------------------
+# Firmware build helper — called by each system-level sim target
+# Usage: $(call build_fw,app_name)
+# -----------------------------------------------------------------------------
+define build_fw
+	@echo ">>> Building firmware APP=$(1)..."
+	$(MAKE) -C $(FIRMWARE_DIR) clean
+	$(MAKE) -C $(FIRMWARE_DIR) APP=$(1)
+endef
 
-all: sim_rom sim_sram sim_uart sim_soc
+.PHONY: all sim_rom sim_sram sim_uart sim_timer \
+        sim_soc sim_arithmetic sim_muldiv sim_cfg \
+        sim_echo sim_timer_soc clean
 
-# --- ROM unit test ---
+all: sim_rom sim_sram sim_uart sim_timer
+
+# -----------------------------------------------------------------------------
+# Unit tests (no firmware needed)
+# -----------------------------------------------------------------------------
 sim_rom: tb_rom.vvp
 	$(VVP) $<
 
 tb_rom.vvp: $(SRC)/wb_rom.v $(TB)/tb_wb_rom.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
-# --- SRAM unit test ---
 sim_sram: tb_sram.vvp
 	$(VVP) $<
 
 tb_sram.vvp: $(SRC)/wb_sram.v $(TB)/tb_wb_sram.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
-# --- UART unit test ---
 sim_uart: tb_uart.vvp
 	$(VVP) $<
 
 tb_uart.vvp: $(SRC)/wb_uart.v $(TB)/tb_wb_uart.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
-# --- Full SoC system test ---
+sim_timer: tb_timer.vvp
+	$(VVP) $<
+
+tb_timer.vvp: $(SRC)/wb_timer.v $(TB)/tb_wb_timer.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+
+# -----------------------------------------------------------------------------
+# Shared RTL sources for all system-level tests
+# -----------------------------------------------------------------------------
+SOC_SRCS := $(PICO)/picorv32.v  \
+            $(SRC)/wb_rom.v      \
+            $(SRC)/wb_sram.v     \
+            $(SRC)/wb_gpio.v     \
+            $(SRC)/wb_uart.v     \
+            $(SRC)/wb_cfg.v      \
+            $(SRC)/wb_timer.v    \
+            $(SRC)/soc_top.v     \
+            $(TB)/uart_monitor.v
+
+# -----------------------------------------------------------------------------
+# System-level tests (auto-compile firmware before simulation)
+# -----------------------------------------------------------------------------
 sim_soc: tb_soc.vvp
+	$(call build_fw,default)
 	$(VVP) $<
 
-tb_soc.vvp: $(PICO)/picorv32.v   \
-            $(SRC)/wb_rom.v       \
-            $(SRC)/wb_sram.v      \
-            $(SRC)/wb_gpio.v      \
-            $(SRC)/wb_uart.v      \
-            $(SRC)/soc_top.v      \
-			$(TB)/uart_monitor.v  \
-            $(TB)/tb_soc_top.v
-	$(IVERILOG) $(FLAGS) -o $@ $^
+tb_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_top.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_top.v
 
-# --- Arithmetic (integer) operations test ---
 sim_arithmetic: tb_arithmetic.vvp
+	$(call build_fw,arithmetic)
 	$(VVP) $<
 
-tb_arithmetic.vvp: $(PICO)/picorv32.v   \
-                   $(SRC)/wb_rom.v       \
-                   $(SRC)/wb_sram.v      \
-                   $(SRC)/wb_gpio.v      \
-                   $(SRC)/wb_uart.v      \
-                   $(SRC)/soc_top.v      \
-                   $(TB)/uart_monitor.v  \
-                   $(TB)/tb_soc_arithmetic.v
-	$(IVERILOG) $(FLAGS) -o $@ $^
+tb_arithmetic.vvp: $(SOC_SRCS) $(TB)/tb_soc_arithmetic.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_arithmetic.v
 
-# --- Multiply/Divide operations test ---
 sim_muldiv: tb_muldiv.vvp
+	$(call build_fw,muldiv)
 	$(VVP) $<
 
-tb_muldiv.vvp: $(PICO)/picorv32.v   \
-               $(SRC)/wb_rom.v       \
-               $(SRC)/wb_sram.v      \
-               $(SRC)/wb_gpio.v      \
-               $(SRC)/wb_uart.v      \
-               $(SRC)/soc_top.v      \
-               $(TB)/uart_monitor.v  \
-               $(TB)/tb_soc_muldiv.v
-	$(IVERILOG) $(FLAGS) -o $@ $^
+tb_muldiv.vvp: $(SOC_SRCS) $(TB)/tb_soc_muldiv.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_muldiv.v
 
-# --- Configuration register test ---
 sim_cfg: tb_cfg.vvp
+	$(call build_fw,cfg_demo)
 	$(VVP) $<
 
-tb_cfg.vvp: $(PICO)/picorv32.v   \
-            $(SRC)/wb_rom.v       \
-            $(SRC)/wb_sram.v      \
-            $(SRC)/wb_gpio.v      \
-            $(SRC)/wb_uart.v      \
-            $(SRC)/wb_cfg.v       \
-            $(SRC)/soc_top.v      \
-            $(TB)/uart_monitor.v  \
-            $(TB)/tb_soc_cfg.v
-	$(IVERILOG) $(FLAGS) -o $@ $^
+tb_cfg.vvp: $(SOC_SRCS) $(TB)/tb_soc_cfg.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_cfg.v
 
+sim_echo: tb_echo.vvp
+	$(call build_fw,uart_echo)
+	$(VVP) $<
+
+tb_echo.vvp: $(SOC_SRCS) $(TB)/tb_soc_echo.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_echo.v
+
+sim_timer_soc: tb_timer_soc.vvp
+	$(call build_fw,timer_demo)
+	$(VVP) $<
+
+tb_timer_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_timer.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_timer.v
+
+# -----------------------------------------------------------------------------
 clean:
 	rm -f *.vvp *.vcd

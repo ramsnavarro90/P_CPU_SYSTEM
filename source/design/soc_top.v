@@ -29,7 +29,11 @@ module soc_top #(
     output wire [31:0] gpio_out,
     input  wire [31:0] gpio_in,
     output wire [31:0] gpio_dir,
-    output wire        uart_tx
+    // UART pads
+    output wire        uart_tx,
+    input  wire        uart_rx,
+    // Timer
+    output wire        timer_irq
 );
 
 // -----------------------------------------------------------------------------
@@ -58,12 +62,18 @@ wire sel_sram = (wbm_adr[31:16] == 16'h8000 );
 wire sel_gpio = (wbm_adr[31: 8] == 24'h900000);
 wire sel_uart = (wbm_adr[31:16] == 16'hA000);
 wire sel_cfg  = (wbm_adr[31:16] == 16'hB000);
+wire sel_timer = (wbm_adr[31:16] == 16'hC000);
+wire timer_stb = wbm_stb & sel_timer;
 wire cfg_stb  = wbm_stb & sel_cfg;
 
 wire rom_stb  = wbm_stb & sel_rom;
 wire sram_stb = wbm_stb & sel_sram;
 wire gpio_stb = wbm_stb & sel_gpio;
 wire uart_stb = wbm_stb & sel_uart;
+
+// Timer signals
+wire [31:0] timer_dat_o;
+wire        timer_ack;
 
 // Config signals
 wire [31:0] cfg_dat_o;
@@ -72,15 +82,16 @@ wire        uart_en;
 wire [15:0] uart_baud_div;
 wire        gpio_en;
 
-// Read mux
-assign wbm_dat_s2m = sel_rom  ? rom_dat_o  :
-                     sel_sram ? sram_dat_o :
-                     sel_gpio ? gpio_dat_o :
-                     sel_uart ? uart_dat_o :
-                     sel_cfg  ? cfg_dat_o  :
+// Wishbnone read mux
+assign wbm_dat_s2m = sel_rom   ? rom_dat_o   :
+                     sel_sram  ? sram_dat_o  :
+                     sel_gpio  ? gpio_dat_o  :
+                     sel_uart  ? uart_dat_o  :
+                     sel_cfg   ? cfg_dat_o   :
+                     sel_timer ? timer_dat_o :
                      32'hDEAD_BEEF;
 
-assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack | cfg_ack;
+assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack | cfg_ack | timer_ack;
 
 // -----------------------------------------------------------------------------
 // CPU — PicoRV32 (Wishbone wrapper)
@@ -101,7 +112,7 @@ picorv32_wb #(
     .wbm_ack_i (wbm_ack),
     .wbm_cyc_o (wbm_cyc),
     .trap      (cpu_trap),
-    .irq       (32'b0)
+    .irq({31'b0, timer_irq})
 );
 
 // -----------------------------------------------------------------------------
@@ -200,7 +211,26 @@ wb_uart u_uart (
     .wb_ack_o(uart_ack),
     .baud_div(uart_baud_div),
     .uart_en (uart_en),
+    .uart_rx (uart_rx),
     .uart_tx (uart_tx)
+);
+
+// -----------------------------------------------------------------------------
+// Timer
+// -----------------------------------------------------------------------------
+
+wb_timer u_timer (
+    .wb_clk_i(clk),
+    .wb_rst_i(~rst_n),
+    .wb_cyc_i(wbm_cyc),
+    .wb_stb_i(timer_stb),
+    .wb_we_i (wbm_we),
+    .wb_sel_i(wbm_sel),
+    .wb_adr_i(wbm_adr),
+    .wb_dat_i(wbm_dat_m2s),
+    .wb_dat_o(timer_dat_o),
+    .wb_ack_o(timer_ack),
+    .timer_irq(timer_irq)
 );
 
 endmodule
