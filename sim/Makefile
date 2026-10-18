@@ -55,6 +55,12 @@ sim_timer: tb_timer.vvp
 tb_timer.vvp: $(SRC)/wb_timer.v $(TB)/tb_wb_timer.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
+sim_spi: tb_spi.vvp
+	$(VVP) $<
+
+tb_spi.vvp: $(SRC)/wb_spi.v $(TB)/tb_wb_spi.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+
 # -----------------------------------------------------------------------------
 # Shared RTL sources for all system-level tests
 # -----------------------------------------------------------------------------
@@ -65,6 +71,7 @@ SOC_SRCS := $(PICO)/picorv32.v  \
             $(SRC)/wb_uart.v     \
             $(SRC)/wb_cfg.v      \
             $(SRC)/wb_timer.v    \
+			$(SRC)/wb_spi.v      \
             $(SRC)/soc_top.v     \
             $(TB)/uart_monitor.v
 
@@ -112,6 +119,13 @@ sim_timer_soc: tb_timer_soc.vvp
 
 tb_timer_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_timer.v
 	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_timer.v
+
+sim_spi_soc: tb_spi_soc.vvp
+	$(call build_fw,spi_demo)
+	$(VVP) $<
+
+tb_spi_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_spi.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_spi.v
 
 # -----------------------------------------------------------------------------
 clean:

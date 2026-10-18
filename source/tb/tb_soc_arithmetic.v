@@ -26,6 +26,8 @@ module tb_soc_arithmetic;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
     reg  [31:0] gpio_in;
+    wire        sclk, mosi, spi_cs_n;
+    reg         miso;
     wire        timer_irq;
 
     // -------------------------------------------------------------------------
@@ -44,6 +46,10 @@ module tb_soc_arithmetic;
         .gpio_dir(gpio_dir),
         .uart_tx (uart_tx),
         .uart_rx (uart_rx),
+        .sclk    (sclk),
+        .mosi    (mosi),
+        .miso    (miso),
+        .spi_cs_n(spi_cs_n)
         .timer_irq(timer_irq)
     );
 
@@ -101,6 +107,7 @@ module tb_soc_arithmetic;
     // -------------------------------------------------------------------------
     initial begin
         uart_rx = 1;   // idle HIGH
+        miso = 1'b0;
         gpio_in = 32'b0;
         rst_n   = 1'b0;
         repeat(8) @(posedge clk);

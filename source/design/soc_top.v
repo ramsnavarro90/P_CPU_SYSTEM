@@ -32,7 +32,12 @@ module soc_top #(
     // UART pads
     output wire        uart_tx,
     input  wire        uart_rx,
-    // Timer
+    // SPI pads
+    output wire        sclk,
+    output wire        mosi,
+    input  wire        miso,
+    output wire        spi_cs_n,
+    // Timer pads
     output wire        timer_irq
 );
 
@@ -57,19 +62,26 @@ wire        rom_ack,    sram_ack,    gpio_ack;
 // -----------------------------------------------------------------------------
 // Address decoder
 // -----------------------------------------------------------------------------
-wire sel_rom  = (wbm_adr[31:12] == 20'h00000);
-wire sel_sram = (wbm_adr[31:16] == 16'h8000 );
-wire sel_gpio = (wbm_adr[31: 8] == 24'h900000);
-wire sel_uart = (wbm_adr[31:16] == 16'hA000);
-wire sel_cfg  = (wbm_adr[31:16] == 16'hB000);
+wire sel_rom   = (wbm_adr[31:12] == 20'h00000);
+wire sel_sram  = (wbm_adr[31:16] == 16'h8000 );
+wire sel_gpio  = (wbm_adr[31: 8] == 24'h900000);
+wire sel_uart  = (wbm_adr[31:16] == 16'hA000);
+wire sel_cfg   = (wbm_adr[31:16] == 16'hB000);
 wire sel_timer = (wbm_adr[31:16] == 16'hC000);
+wire sel_spi   = (wbm_adr[31:16] == 16'hD000);
+
 wire timer_stb = wbm_stb & sel_timer;
 wire cfg_stb  = wbm_stb & sel_cfg;
+wire spi_stb  = wbm_stb & sel_spi;
 
 wire rom_stb  = wbm_stb & sel_rom;
 wire sram_stb = wbm_stb & sel_sram;
 wire gpio_stb = wbm_stb & sel_gpio;
 wire uart_stb = wbm_stb & sel_uart;
+
+// SPI signals
+wire [31:0] spi_dat_o;
+wire        spi_ack;
 
 // Timer signals
 wire [31:0] timer_dat_o;
@@ -89,9 +101,11 @@ assign wbm_dat_s2m = sel_rom   ? rom_dat_o   :
                      sel_uart  ? uart_dat_o  :
                      sel_cfg   ? cfg_dat_o   :
                      sel_timer ? timer_dat_o :
+                     sel_spi   ? spi_dat_o   :
                      32'hDEAD_BEEF;
 
-assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack | cfg_ack | timer_ack;
+assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack
+               | cfg_ack | timer_ack | spi_ack;
 
 // -----------------------------------------------------------------------------
 // CPU — PicoRV32 (Wishbone wrapper)
@@ -231,6 +245,26 @@ wb_timer u_timer (
     .wb_dat_o(timer_dat_o),
     .wb_ack_o(timer_ack),
     .timer_irq(timer_irq)
+);
+
+// -----------------------------------------------------------------------------
+// SPI
+// -----------------------------------------------------------------------------
+wb_spi u_spi (
+    .wb_clk_i(clk),
+    .wb_rst_i(~rst_n),
+    .wb_cyc_i(wbm_cyc),
+    .wb_stb_i(spi_stb),
+    .wb_we_i (wbm_we),
+    .wb_sel_i(wbm_sel),
+    .wb_adr_i(wbm_adr),
+    .wb_dat_i(wbm_dat_m2s),
+    .wb_dat_o(spi_dat_o),
+    .wb_ack_o(spi_ack),
+    .sclk    (sclk),
+    .mosi    (mosi),
+    .miso    (miso),
+    .spi_cs_n(spi_cs_n)
 );
 
 endmodule

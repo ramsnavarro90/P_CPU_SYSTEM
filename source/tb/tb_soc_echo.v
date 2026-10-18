@@ -19,17 +19,34 @@ module tb_soc_echo;
     reg        uart_rx;
     wire [31:0] gpio_out, gpio_dir;
     reg  [31:0] gpio_in;
+    wire        sclk, mosi, spi_cs_n;
+    reg         miso;
 
     soc_top #(.ROM_FILE(ROM_FILE), .CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE))
     u_dut (
-        .clk(clk), .rst_n(rst_n), .cpu_trap(cpu_trap),
-        .uart_tx(uart_tx), .uart_rx(uart_rx),
-        .gpio_out(gpio_out), .gpio_in(gpio_in), .gpio_dir(gpio_dir),
+        .clk(clk),
+        .rst_n(rst_n),
+        .cpu_trap(cpu_trap),
+        .uart_tx(uart_tx),
+        .uart_rx(uart_rx),
+        .gpio_out(gpio_out),
+        .gpio_in(gpio_in),
+        .gpio_dir(gpio_dir),
+        .sclk(sclk),
+        .mosi(mosi),
+        .miso(miso),
+        .spi_cs_n(spi_cs_n),
         .timer_irq(timer_irq)
     );
 
-    uart_monitor #(.CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE), .PREFIX("UART-MON"))
-    u_mon (.clk(clk), .uart_tx(uart_tx));
+    uart_monitor #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE),
+        .PREFIX("UART-MON")
+    ) u_mon (
+        .clk(clk),
+        .uart_tx(uart_tx)
+    );
 
     initial clk = 0;
     always  #5 clk = ~clk;
@@ -91,6 +108,8 @@ module tb_soc_echo;
     reg [7:0] test_bytes [0:7];
     integer   i;
     initial begin
+        uart_rx = 1;   // idle HIGH
+        miso = 1'b0;
         test_bytes[0] = 8'h41;  // 'A'
         test_bytes[1] = 8'h42;  // 'B'
         test_bytes[2] = 8'h43;  // 'C'

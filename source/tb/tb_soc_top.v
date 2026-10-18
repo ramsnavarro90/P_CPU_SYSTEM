@@ -37,6 +37,8 @@ module tb_soc_top;
     reg  [31:0] gpio_in;
     wire        uart_tx;
     reg         uart_rx;
+    wire sclk, mosi, spi_cs_n;
+    reg  miso;
     wire        timer_irq;
 
     // -------------------------------------------------------------------------
@@ -55,6 +57,10 @@ module tb_soc_top;
         .gpio_dir(gpio_dir),
         .uart_tx (uart_tx),
         .uart_rx (uart_rx),
+        .sclk    (sclk),
+        .mosi    (mosi),
+        .miso    (miso),
+        .spi_cs_n(spi_cs_n)
         .timer_irq(timer_irq)
     );
 
@@ -116,6 +122,7 @@ module tb_soc_top;
 
     initial begin
         uart_rx = 1;
+        miso = 1'b0;
         gpio_in = 32'hCAFE_1234;   // arbitrary input value
         rst_n   = 1'b0;
         repeat(8) @(posedge clk);  // hold reset for 8 cycles

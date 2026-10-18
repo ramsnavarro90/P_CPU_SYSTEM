@@ -10,12 +10,14 @@ module tb_soc_timer;
     parameter integer TIMEOUT   = 5_000_000;
     parameter         ROM_FILE  = "firmware.hex";
 
-    reg        clk, rst_n;
-    wire       cpu_trap, timer_irq;
-    wire       uart_tx;
-    reg        uart_rx;
+    reg         clk, rst_n;
+    wire        cpu_trap, timer_irq;
+    wire        uart_tx;
+    reg         uart_rx;
     wire [31:0] gpio_out, gpio_dir;
     reg  [31:0] gpio_in;
+    wire        sclk, mosi, spi_cs_n;
+    reg         miso;
 
     soc_top #(
         .ROM_FILE(ROM_FILE),
@@ -30,6 +32,10 @@ module tb_soc_timer;
         .gpio_out(gpio_out),
         .gpio_in(gpio_in),
         .gpio_dir(gpio_dir),
+        .sclk    (sclk),
+        .mosi    (mosi),
+        .miso    (miso),
+        .spi_cs_n(spi_cs_n)
         .timer_irq(timer_irq)
     );
 
@@ -59,6 +65,7 @@ module tb_soc_timer;
 
     initial begin
         uart_rx = 1;   // idle HIGH
+        miso = 1'b0;
         gpio_in = 0;
         rst_n = 0; repeat(8) @(posedge clk); rst_n = 1;
         $display("INFO: reset released");
