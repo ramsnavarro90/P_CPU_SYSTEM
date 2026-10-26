@@ -24,9 +24,9 @@ endef
 
 .PHONY: all sim_rom sim_sram sim_uart sim_timer \
         sim_soc sim_arithmetic sim_muldiv sim_cfg \
-        sim_echo sim_timer_soc clean
+        sim_echo sim_timer_soc sim_i2c clean
 
-all: sim_rom sim_sram sim_uart sim_timer
+all: sim_rom sim_sram sim_uart sim_timer sim_i2c
 
 # -----------------------------------------------------------------------------
 # Unit tests (no firmware needed)
@@ -64,6 +64,10 @@ tb_spi.vvp: $(SRC)/wb_spi.v $(TB)/tb_wb_spi.v
 # -----------------------------------------------------------------------------
 # Shared RTL sources for all system-level tests
 # -----------------------------------------------------------------------------
+I2C_CORE := $(SRC)/i2c_core/axis_fifo.v \
+			$(SRC)/i2c_core/i2c_master.v \
+            $(SRC)/i2c_core/i2c_master_wbs_8.v
+
 SOC_SRCS := $(PICO)/picorv32.v  \
             $(SRC)/wb_rom.v      \
             $(SRC)/wb_sram.v     \
@@ -72,6 +76,8 @@ SOC_SRCS := $(PICO)/picorv32.v  \
             $(SRC)/wb_cfg.v      \
             $(SRC)/wb_timer.v    \
 			$(SRC)/wb_spi.v      \
+			$(I2C_CORE)          \
+			$(SRC)/wb_i2c.v      \
             $(SRC)/soc_top.v     \
             $(TB)/uart_monitor.v
 
@@ -126,6 +132,19 @@ sim_spi_soc: tb_spi_soc.vvp
 
 tb_spi_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_spi.v
 	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_spi.v
+
+sim_i2c: tb_i2c.vvp
+	$(VVP) $<
+
+tb_i2c.vvp: $(I2C_CORE) $(SRC)/wb_i2c.v $(TB)/tb_wb_i2c.v
+	$(IVERILOG) $(FLAGS) -o $@ $^
+
+sim_i2c_soc: tb_i2c_soc.vvp
+	$(call build_fw,i2c_demo)
+	$(VVP) $<
+
+tb_i2c_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_i2c.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_i2c.v
 
 # -----------------------------------------------------------------------------
 clean:

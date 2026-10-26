@@ -19,8 +19,10 @@ module tb_soc_muldiv;
     wire [31:0] gpio_out;
     wire [31:0] gpio_dir;
     reg  [31:0] gpio_in;
-    wire sclk, mosi, spi_cs_n;
-    reg  miso;
+    wire        sclk, mosi, spi_cs_n;
+    reg         miso;
+    wire        i2c_scl_o, i2c_sda_o;
+    reg         i2c_scl_i, i2c_sda_i;
     wire        timer_irq;
 
     soc_top #(
@@ -39,7 +41,11 @@ module tb_soc_muldiv;
         .sclk    (sclk),
         .mosi    (mosi),
         .miso    (miso),
-        .spi_cs_n(spi_cs_n)
+        .i2c_scl_o(i2c_scl_o),
+        .i2c_scl_i(i2c_scl_i),
+        .i2c_sda_o(i2c_sda_o),
+        .i2c_sda_i(i2c_sda_i),
+        .spi_cs_n(spi_cs_n),
         .timer_irq(timer_irq)
     );
 
@@ -80,6 +86,8 @@ module tb_soc_muldiv;
     initial begin
         uart_rx = 1;   // idle HIGH
         gpio_in = 32'b0;
+        i2c_scl_i = 1;
+        i2c_sda_i = 1;
         rst_n   = 1'b0;
         repeat(8) @(posedge clk);
         rst_n = 1'b1;

@@ -27,6 +27,10 @@ module tb_soc_cfg;
     reg  [31:0] gpio_in;
     wire        sclk, mosi, spi_cs_n;
     reg         miso;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    pullup      (i2c_scl);
+    pullup      (i2c_sda);
     wire        timer_irq;
 
     soc_top #(
@@ -45,13 +49,20 @@ module tb_soc_cfg;
         .sclk    (sclk),
         .mosi    (mosi),
         .miso    (miso),
-        .spi_cs_n(spi_cs_n)
+        .spi_cs_n(spi_cs_n),
+        .i2c_scl(i2c_scl),
+        .i2c_sda(i2c_sda),
         .timer_irq(timer_irq)
     );
 
-    uart_monitor #(
-        .CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE), .PREFIX("UART-MON")
-    ) u_mon (.clk(clk), .uart_tx(uart_tx));
+     uart_monitor #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE),
+        .PREFIX("UART-MON"))
+    u_mon (
+        .clk(clk),
+        .uart_tx(uart_tx)
+    );
 
     initial clk = 0;
     always  #5 clk = ~clk;
@@ -78,7 +89,8 @@ module tb_soc_cfg;
     initial begin
         uart_rx = 1;   // idle HIGH
         miso = 1'b0;
-        gpio_in = 32'b0; rst_n = 0;
+        gpio_in = 32'b0;
+        rst_n = 0;
         repeat(8) @(posedge clk);
         rst_n = 1;
         $display("INFO: reset released");

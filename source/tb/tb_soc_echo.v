@@ -21,6 +21,10 @@ module tb_soc_echo;
     reg  [31:0] gpio_in;
     wire        sclk, mosi, spi_cs_n;
     reg         miso;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    pullup      (i2c_scl);
+    pullup      (i2c_sda);
 
     soc_top #(.ROM_FILE(ROM_FILE), .CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE))
     u_dut (
@@ -36,6 +40,8 @@ module tb_soc_echo;
         .mosi(mosi),
         .miso(miso),
         .spi_cs_n(spi_cs_n),
+        .i2c_scl(i2c_scl),
+        .i2c_sda(i2c_sda),
         .timer_irq(timer_irq)
     );
 
@@ -110,6 +116,8 @@ module tb_soc_echo;
     initial begin
         uart_rx = 1;   // idle HIGH
         miso = 1'b0;
+        i2c_scl_i = 1;
+        i2c_sda_i = 1;
         test_bytes[0] = 8'h41;  // 'A'
         test_bytes[1] = 8'h42;  // 'B'
         test_bytes[2] = 8'h43;  // 'C'
@@ -120,7 +128,7 @@ module tb_soc_echo;
         test_bytes[7] = 8'hFF;
     end
 
-        initial begin
+    initial begin
         uart_rx = 1; gpio_in = 0;
         rst_n = 0; repeat(8) @(posedge clk); rst_n = 1;
         $display("INFO: reset released");

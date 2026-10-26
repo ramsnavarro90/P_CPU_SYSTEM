@@ -37,31 +37,38 @@ module tb_soc_top;
     reg  [31:0] gpio_in;
     wire        uart_tx;
     reg         uart_rx;
-    wire sclk, mosi, spi_cs_n;
-    reg  miso;
+    wire        sclk, mosi, spi_cs_n;
+    reg         miso;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    reg         slave_sda_r;
     wire        timer_irq;
+    pullup(i2c_scl);
+    pullup(i2c_sda);
 
     // -------------------------------------------------------------------------
     // DUT instantiation
     // -------------------------------------------------------------------------
     soc_top #(
-        .ROM_FILE("firmware.hex"),
-        .CLK_FREQ (CLK_FREQ),
-        .BAUD_RATE(BAUD_RATE)
+        .ROM_FILE   ("firmware.hex"),
+        .CLK_FREQ   (CLK_FREQ),
+        .BAUD_RATE  (BAUD_RATE)
     ) u_dut (
-        .clk     (clk),
-        .rst_n   (rst_n),
-        .cpu_trap(cpu_trap),
-        .gpio_out(gpio_out),
-        .gpio_in (gpio_in),
-        .gpio_dir(gpio_dir),
-        .uart_tx (uart_tx),
-        .uart_rx (uart_rx),
-        .sclk    (sclk),
-        .mosi    (mosi),
-        .miso    (miso),
-        .spi_cs_n(spi_cs_n)
-        .timer_irq(timer_irq)
+        .clk        (clk),
+        .rst_n      (rst_n),
+        .cpu_trap   (cpu_trap),
+        .gpio_out   (gpio_out),
+        .gpio_in    (gpio_in),
+        .gpio_dir   (gpio_dir),
+        .uart_tx    (uart_tx),
+        .uart_rx    (uart_rx),
+        .sclk       (sclk),
+        .mosi       (mosi),
+        .miso       (miso),
+        .spi_cs_n   (spi_cs_n),
+        .i2c_scl    (i2c_scl),
+        .i2c_sda    (i2c_sda),
+        .timer_irq  (timer_irq)
     );
 
     // -------------------------------------------------------------------------
@@ -75,6 +82,9 @@ module tb_soc_top;
         .clk    (clk),
         .uart_tx(uart_tx)
     );
+
+    initial slave_sda_r = 1'b1;
+    assign i2c_sda = slave_sda_r ? 1'bz : 1'b0;
 
     // -------------------------------------------------------------------------
     // Clock

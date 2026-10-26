@@ -37,6 +37,9 @@ module soc_top #(
     output wire        mosi,
     input  wire        miso,
     output wire        spi_cs_n,
+    // I2C pads
+    inout  wire        i2c_scl,
+    inout  wire        i2c_sda,
     // Timer pads
     output wire        timer_irq
 );
@@ -69,10 +72,12 @@ wire sel_uart  = (wbm_adr[31:16] == 16'hA000);
 wire sel_cfg   = (wbm_adr[31:16] == 16'hB000);
 wire sel_timer = (wbm_adr[31:16] == 16'hC000);
 wire sel_spi   = (wbm_adr[31:16] == 16'hD000);
+wire sel_i2c  = (wbm_adr[31:16] == 16'hE000);
 
 wire timer_stb = wbm_stb & sel_timer;
-wire cfg_stb  = wbm_stb & sel_cfg;
-wire spi_stb  = wbm_stb & sel_spi;
+wire cfg_stb   = wbm_stb & sel_cfg;
+wire spi_stb   = wbm_stb & sel_spi;
+wire i2c_stb   = wbm_stb & sel_i2c;
 
 wire rom_stb  = wbm_stb & sel_rom;
 wire sram_stb = wbm_stb & sel_sram;
@@ -83,6 +88,11 @@ wire uart_stb = wbm_stb & sel_uart;
 wire [31:0] spi_dat_o;
 wire        spi_ack;
 
+// I2C signals
+wire [31:0] i2c_dat_o;
+wire        i2c_ack;
+wire        i2c_irq;
+
 // Timer signals
 wire [31:0] timer_dat_o;
 wire        timer_ack;
@@ -90,9 +100,13 @@ wire        timer_ack;
 // Config signals
 wire [31:0] cfg_dat_o;
 wire        cfg_ack;
+
+// UART signals
 wire        uart_en;
 wire [15:0] uart_baud_div;
 wire        gpio_en;
+wire [31:0] uart_dat_o;
+wire        uart_ack;
 
 // Wishbnone read mux
 assign wbm_dat_s2m = sel_rom   ? rom_dat_o   :
@@ -102,10 +116,11 @@ assign wbm_dat_s2m = sel_rom   ? rom_dat_o   :
                      sel_cfg   ? cfg_dat_o   :
                      sel_timer ? timer_dat_o :
                      sel_spi   ? spi_dat_o   :
+                     sel_i2c   ? i2c_dat_o   :
                      32'hDEAD_BEEF;
 
 assign wbm_ack = rom_ack | sram_ack | gpio_ack | uart_ack
-               | cfg_ack | timer_ack | spi_ack;
+               | cfg_ack | timer_ack | spi_ack | i2c_ack;
 
 // -----------------------------------------------------------------------------
 // CPU — PicoRV32 (Wishbone wrapper)
@@ -126,7 +141,10 @@ picorv32_wb #(
     .wbm_ack_i (wbm_ack),
     .wbm_cyc_o (wbm_cyc),
     .trap      (cpu_trap),
-    .irq({31'b0, timer_irq})
+    .irq       ({30'b0, 
+                 i2c_irq,
+                 timer_irq}
+                 )
 );
 
 // -----------------------------------------------------------------------------
@@ -166,7 +184,6 @@ wb_sram #(
 // -----------------------------------------------------------------------------
 // Config
 // -----------------------------------------------------------------------------
-
 wb_cfg #(
     .CLK_FREQ (CLK_FREQ),
     .BAUD_RATE(BAUD_RATE)
@@ -209,9 +226,6 @@ wb_gpio u_gpio (
 // -----------------------------------------------------------------------------
 // UART
 // -----------------------------------------------------------------------------
-wire [31:0] uart_dat_o;
-wire        uart_ack;
-
 wb_uart u_uart (
     .wb_clk_i(clk),
     .wb_rst_i(~rst_n),
@@ -232,7 +246,6 @@ wb_uart u_uart (
 // -----------------------------------------------------------------------------
 // Timer
 // -----------------------------------------------------------------------------
-
 wb_timer u_timer (
     .wb_clk_i(clk),
     .wb_rst_i(~rst_n),
@@ -265,6 +278,25 @@ wb_spi u_spi (
     .mosi    (mosi),
     .miso    (miso),
     .spi_cs_n(spi_cs_n)
+);
+
+// -----------------------------------------------------------------------------
+// I2C
+// -----------------------------------------------------------------------------
+wb_i2c u_i2c (
+    .wb_clk_i(clk),
+    .wb_rst_i(~rst_n),
+    .wb_cyc_i(wbm_cyc),
+    .wb_stb_i(i2c_stb),
+    .wb_we_i (wbm_we),
+    .wb_sel_i(wbm_sel),
+    .wb_adr_i(wbm_adr),
+    .wb_dat_i(wbm_dat_m2s),
+    .wb_dat_o(i2c_dat_o),
+    .wb_ack_o(i2c_ack),
+    .scl     (i2c_scl),
+    .sda     (i2c_sda),
+    .i2c_irq (i2c_irq)
 );
 
 endmodule

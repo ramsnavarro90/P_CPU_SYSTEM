@@ -18,6 +18,10 @@ module tb_soc_timer;
     reg  [31:0] gpio_in;
     wire        sclk, mosi, spi_cs_n;
     reg         miso;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    pullup      (i2c_scl);
+    pullup      (i2c_sda);
 
     soc_top #(
         .ROM_FILE(ROM_FILE),
@@ -35,12 +39,20 @@ module tb_soc_timer;
         .sclk    (sclk),
         .mosi    (mosi),
         .miso    (miso),
-        .spi_cs_n(spi_cs_n)
+        .spi_cs_n(spi_cs_n),
+        .i2c_scl(i2c_scl),
+        .i2c_sda(i2c_sda),
         .timer_irq(timer_irq)
     );
 
-    uart_monitor #(.CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE), .PREFIX("UART-MON"))
-    u_mon (.clk(clk), .uart_tx(uart_tx));
+    uart_monitor #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE),
+        .PREFIX("UART-MON"))
+    u_mon (
+        .clk(clk),
+        .uart_tx(uart_tx)
+    );
 
     initial clk = 0;
     always  #5 clk = ~clk;

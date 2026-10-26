@@ -23,21 +23,44 @@ module tb_soc_spi;
     reg        uart_rx, miso;
     wire [31:0] gpio_out, gpio_dir;
     reg  [31:0] gpio_in;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    pullup      (i2c_scl);
+    pullup      (i2c_sda);
 
     // MISO = MOSI loopback
     always @(*) miso = mosi;
 
-    soc_top #(.ROM_FILE(ROM_FILE), .CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE))
-    u_dut (
-        .clk(clk), .rst_n(rst_n), .cpu_trap(cpu_trap),
-        .uart_tx(uart_tx), .uart_rx(uart_rx),
-        .gpio_out(gpio_out), .gpio_in(gpio_in), .gpio_dir(gpio_dir),
-        .timer_irq(timer_irq),
-        .sclk(sclk), .mosi(mosi), .miso(miso), .spi_cs_n(spi_cs_n)
+    soc_top #(
+        .ROM_FILE(ROM_FILE),
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE)
+        ) u_dut (
+        .clk(clk),
+        .rst_n(rst_n),
+        .cpu_trap(cpu_trap),
+        .uart_tx(uart_tx),
+        .uart_rx(uart_rx),
+        .gpio_out(gpio_out),
+        .gpio_in(gpio_in),
+        .gpio_dir(gpio_dir),
+        .sclk(sclk),
+        .mosi(mosi),
+        .miso(miso),
+        .spi_cs_n(spi_cs_n),
+        .i2c_scl(i2c_scl),
+        .i2c_sda(i2c_sda),
+        .timer_irq(timer_irq)
     );
 
-    uart_monitor #(.CLK_FREQ(CLK_FREQ), .BAUD_RATE(BAUD_RATE), .PREFIX("UART-MON"))
-    u_mon (.clk(clk), .uart_tx(uart_tx));
+    uart_monitor #(
+        .CLK_FREQ(CLK_FREQ),
+        .BAUD_RATE(BAUD_RATE),
+        .PREFIX("UART-MON"))
+    u_mon (
+        .clk(clk),
+        .uart_tx(uart_tx)
+    );
 
     initial clk = 0;
     always  #5 clk = ~clk;
@@ -61,8 +84,10 @@ module tb_soc_spi;
     end
 
     initial begin
-        uart_rx = 1; gpio_in = 0;
-        rst_n = 0; repeat(8) @(posedge clk); rst_n = 1;
+        uart_rx = 1;
+        gpio_in = 0;
+        rst_n = 0;
+        repeat(8) @(posedge clk); rst_n = 1;
         $display("INFO: reset released");
 
         @(posedge clk);

@@ -28,6 +28,10 @@ module tb_soc_arithmetic;
     reg  [31:0] gpio_in;
     wire        sclk, mosi, spi_cs_n;
     reg         miso;
+    wire        i2c_scl;
+    wire        i2c_sda;
+    pullup      (i2c_scl);
+    pullup      (i2c_sda);
     wire        timer_irq;
 
     // -------------------------------------------------------------------------
@@ -49,7 +53,9 @@ module tb_soc_arithmetic;
         .sclk    (sclk),
         .mosi    (mosi),
         .miso    (miso),
-        .spi_cs_n(spi_cs_n)
+        .spi_cs_n(spi_cs_n),
+        .i2c_scl(i2c_scl),
+        .i2c_sda(i2c_sda)
         .timer_irq(timer_irq)
     );
 

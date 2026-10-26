@@ -58,6 +58,32 @@
 #define SPI_CPHA      (1u << 1)
 #define SPI_CS_N      (1u << 4)   // 1=deasserted, 0=asserted
 
+// ---- I2C    0xE000_0000 -----------------------------------------------------
+// Wraps alexforencich/verilog-i2c i2c_master_wbs_8
+#define I2C_BASE        0xE0000000UL
+#define I2C_STATUS      (*(volatile unsigned int *)(I2C_BASE + 0x00))  // R
+#define I2C_FIFO_STAT   (*(volatile unsigned int *)(I2C_BASE + 0x04))  // R
+#define I2C_CMD_ADDR    (*(volatile unsigned int *)(I2C_BASE + 0x08))  // W  [6:0]
+#define I2C_COMMAND     (*(volatile unsigned int *)(I2C_BASE + 0x0C))  // W
+#define I2C_DATA        (*(volatile unsigned int *)(I2C_BASE + 0x10))  // R/W
+#define I2C_PRE_LO      (*(volatile unsigned int *)(I2C_BASE + 0x18))  // R/W
+#define I2C_PRE_HI      (*(volatile unsigned int *)(I2C_BASE + 0x1C))  // R/W
+
+// STATUS bits
+#define I2C_BUSY        (1u << 0)
+#define I2C_BUS_CTRL    (1u << 1)
+#define I2C_BUS_ACT     (1u << 2)
+#define I2C_MISS_ACK    (1u << 3)
+
+// COMMAND bits
+#define I2C_CMD_START   (1u << 0)   // generate START or repeated START
+#define I2C_CMD_READ    (1u << 1)   // read byte
+#define I2C_CMD_WRITE   (1u << 2)   // write byte
+#define I2C_CMD_WR_MULT (1u << 3)   // write multiple
+#define I2C_CMD_STOP    (1u << 4)   // generate STOP
+
+// -----------------------------------------------------------------------------
+
 // ---- UART helpers -----------------------------------------------------------
 static inline void uart_putchar(char c) {
     while (UART_TX_BUSY);
@@ -89,7 +115,7 @@ static inline void uart_print_uint(unsigned int val) {
     }
 }
 
-// SPI helpers
+// ---- SPI helpers ------------------------------------------------------------
 static inline unsigned char spi_transfer(unsigned char tx) {
     SPI_DATA = (unsigned int)tx;          // start transfer
     while (SPI_BUSY);                     // wait complete
@@ -98,5 +124,34 @@ static inline unsigned char spi_transfer(unsigned char tx) {
 
 static inline void spi_cs_assert(void)   { SPI_CTRL &= ~SPI_CS_N; }
 static inline void spi_cs_deassert(void) { SPI_CTRL |=  SPI_CS_N; }
+
+
+// ---- I2C helpers ------------------------------------------------------------
+static inline void i2c_wait(void) {
+    while (I2C_STATUS & I2C_BUSY);
+}
+
+static inline unsigned char i2c_nacked(void) {
+    return (I2C_STATUS & I2C_MISS_ACK) ? 1 : 0;
+}
+
+static inline void i2c_write_byte(unsigned char data,
+                                   unsigned char start,
+                                   unsigned char stop) {
+    unsigned int cmd = I2C_CMD_WRITE;
+    if (start) cmd |= I2C_CMD_START;
+    if (stop)  cmd |= I2C_CMD_STOP;
+    I2C_DATA    = data;
+    I2C_COMMAND = cmd;
+    i2c_wait();
+}
+
+static inline unsigned char i2c_read_byte(unsigned char stop) {
+    unsigned int cmd = I2C_CMD_READ;
+    if (stop) cmd |= I2C_CMD_STOP;
+    I2C_COMMAND = cmd;
+    i2c_wait();
+    return (unsigned char)(I2C_DATA & 0xFF);
+}
 
 #endif // SOC_H
