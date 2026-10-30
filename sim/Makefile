@@ -28,6 +28,19 @@ endef
 
 all: sim_rom sim_sram sim_uart sim_timer sim_i2c
 
+.PHONY: regress
+regress:
+	@set -e; \
+	for t in sim_rom sim_sram sim_uart sim_timer sim_spi sim_i2c \
+	         sim_soc sim_arithmetic sim_cfg sim_echo sim_timer_soc \
+	         sim_spi_soc sim_i2c_soc; do \
+	    echo "=== $$t ==="; \
+	    $(MAKE) --no-print-directory $$t > $$t.log 2>&1 || { echo "FAIL (run): $$t"; tail -5 $$t.log; exit 1; }; \
+	    grep -q "FAIL" $$t.log && { echo "FAIL: $$t"; grep "FAIL" $$t.log; exit 1; }; \
+	    grep -q "all \(checks \)\?\(tests \)\?passed" $$t.log || { echo "NO PASS LINE: $$t"; exit 1; }; \
+	    echo "PASS"; \
+	done; echo "*** regression: all green ***"
+
 # -----------------------------------------------------------------------------
 # Unit tests (no firmware needed)
 # -----------------------------------------------------------------------------
@@ -136,15 +149,15 @@ tb_spi_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_spi.v
 sim_i2c: tb_i2c.vvp
 	$(VVP) $<
 
-tb_i2c.vvp: $(I2C_CORE) $(SRC)/wb_i2c.v $(TB)/tb_wb_i2c.v
+tb_i2c.vvp: $(I2C_CORE) $(SRC)/wb_i2c.v $(TB)/i2c_slave_model.v $(TB)/tb_wb_i2c.v
 	$(IVERILOG) $(FLAGS) -o $@ $^
 
 sim_i2c_soc: tb_i2c_soc.vvp
 	$(call build_fw,i2c_demo)
 	$(VVP) $<
 
-tb_i2c_soc.vvp: $(SOC_SRCS) $(TB)/tb_soc_i2c.v
-	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/tb_soc_i2c.v
+tb_i2c_soc.vvp: $(SOC_SRCS) $(TB)/i2c_slave_model.v $(TB)/tb_soc_i2c.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/i2c_slave_model.v $(TB)/tb_soc_i2c.v
 
 # -----------------------------------------------------------------------------
 clean:

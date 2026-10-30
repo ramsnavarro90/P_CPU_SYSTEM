@@ -59,28 +59,32 @@
 #define SPI_CS_N      (1u << 4)   // 1=deasserted, 0=asserted
 
 // ---- I2C    0xE000_0000 -----------------------------------------------------
-// Wraps alexforencich/verilog-i2c i2c_master_wbs_8
+// alexforencich i2c_master_wbs_8 — commands/data go through FIFOs
 #define I2C_BASE        0xE0000000UL
-#define I2C_STATUS      (*(volatile unsigned int *)(I2C_BASE + 0x00))  // R
-#define I2C_FIFO_STAT   (*(volatile unsigned int *)(I2C_BASE + 0x04))  // R
-#define I2C_CMD_ADDR    (*(volatile unsigned int *)(I2C_BASE + 0x08))  // W  [6:0]
-#define I2C_COMMAND     (*(volatile unsigned int *)(I2C_BASE + 0x0C))  // W
-#define I2C_DATA        (*(volatile unsigned int *)(I2C_BASE + 0x10))  // R/W
-#define I2C_PRE_LO      (*(volatile unsigned int *)(I2C_BASE + 0x18))  // R/W
-#define I2C_PRE_HI      (*(volatile unsigned int *)(I2C_BASE + 0x1C))  // R/W
+#define I2C_STATUS      (*(volatile unsigned int *)(I2C_BASE + 0x00))
+#define I2C_FIFO_STAT   (*(volatile unsigned int *)(I2C_BASE + 0x04))
+#define I2C_CMD_ADDR    (*(volatile unsigned int *)(I2C_BASE + 0x08))  // [6:0]
+#define I2C_COMMAND     (*(volatile unsigned int *)(I2C_BASE + 0x0C))  // push cmd
+#define I2C_DATA        (*(volatile unsigned int *)(I2C_BASE + 0x10))  // W push / R pop
+#define I2C_PRE_LO      (*(volatile unsigned int *)(I2C_BASE + 0x18))
+#define I2C_PRE_HI      (*(volatile unsigned int *)(I2C_BASE + 0x1C))
 
 // STATUS bits
 #define I2C_BUSY        (1u << 0)
-#define I2C_BUS_CTRL    (1u << 1)
+#define I2C_BUS_CONT    (1u << 1)
 #define I2C_BUS_ACT     (1u << 2)
-#define I2C_MISS_ACK    (1u << 3)
+#define I2C_MISS_ACK    (1u << 3)   // sticky: write 1 to clear
 
-// COMMAND bits
-#define I2C_CMD_START   (1u << 0)   // generate START or repeated START
-#define I2C_CMD_READ    (1u << 1)   // read byte
-#define I2C_CMD_WRITE   (1u << 2)   // write byte
-#define I2C_CMD_WR_MULT (1u << 3)   // write multiple
-#define I2C_CMD_STOP    (1u << 4)   // generate STOP
+// FIFO_STAT bits
+#define I2C_CMD_EMPTY   (1u << 0)
+#define I2C_WR_EMPTY    (1u << 3)
+#define I2C_RD_EMPTY    (1u << 6)
+
+// COMMAND bits (combinable: START, then READ or WRITE, then STOP)
+#define I2C_CMD_START   (1u << 0)
+#define I2C_CMD_READ    (1u << 1)
+#define I2C_CMD_WRITE   (1u << 2)
+#define I2C_CMD_STOP    (1u << 4)
 
 // -----------------------------------------------------------------------------
 
@@ -127,12 +131,18 @@ static inline void spi_cs_deassert(void) { SPI_CTRL |=  SPI_CS_N; }
 
 
 // ---- I2C helpers ------------------------------------------------------------
+// f_scl = f_clk / (4 * prescale)
+// Wait until all queued commands are done. FIFO status is read first because
+// busy can lag the command pop.
 static inline void i2c_wait(void) {
-    while (I2C_STATUS & I2C_BUSY);
+    while (!(I2C_FIFO_STAT & I2C_CMD_EMPTY) || (I2C_STATUS & I2C_BUSY));
 }
 
-static inline unsigned char i2c_nacked(void) {
-    return (I2C_STATUS & I2C_MISS_ACK) ? 1 : 0;
+static inline unsigned int i2c_nacked(void) {
+    return (I2C_STATUS & I2C_MISS_ACK) != 0;
+}
+static inline void i2c_clear_nack(void) {
+    I2C_STATUS = I2C_MISS_ACK;
 }
 
 static inline void i2c_write_byte(unsigned char data,

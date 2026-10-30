@@ -116,8 +116,6 @@ module tb_soc_echo;
     initial begin
         uart_rx = 1;   // idle HIGH
         miso = 1'b0;
-        i2c_scl_i = 1;
-        i2c_sda_i = 1;
         test_bytes[0] = 8'h41;  // 'A'
         test_bytes[1] = 8'h42;  // 'B'
         test_bytes[2] = 8'h43;  // 'C'

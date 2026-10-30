@@ -1,3 +1,4 @@
 Source: https://github.com/alexforencich/verilog-i2c
 License: MIT
 Same core used by CF_I2C (chipfoundry/CF_I2C)
+Patched: axis_fifo port constants sized in i2c_master_wbs_8.v (silences width warnings)

@@ -55,7 +55,7 @@ module tb_soc_arithmetic;
         .miso    (miso),
         .spi_cs_n(spi_cs_n),
         .i2c_scl(i2c_scl),
-        .i2c_sda(i2c_sda)
+        .i2c_sda(i2c_sda),
         .timer_irq(timer_irq)
     );
 

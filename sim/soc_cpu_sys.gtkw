@@ -1,0 +1,28 @@
+[*]
+[*] GTKWave Analyzer v3.3.116 (w)1999-2023 BSI
+[*] Thu Oct 29 03:41:03 2026
+[*]
+[dumpfile] "/home/angel/designs/P_CPU_SYSTEM/sim/tb_soc_i2c.vcd"
+[dumpfile_mtime] "Mon Oct 26 05:01:07 2026"
+[dumpfile_size] 82179506
+[savefile] "/home/angel/designs/P_CPU_SYSTEM/sim/soc_cpu_sys.gtkw"
+[timestart] 0
+[size] 1920 985
+[pos] -27 -24
+*-15.848921 12000 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1 -1
+[treeopen] tb_soc_i2c.
+[treeopen] tb_soc_i2c.u_dut.
+[treeopen] tb_soc_i2c.u_mon.
+[sst_width] 297
+[signals_width] 219
+[sst_expanded] 1
+[sst_vpaned_height] 291
+@201
+-SYS
+@29
++{tb_soc_i2c.u_dut.rst_n} tb_soc_i2c.u_dut.rst_n
+tb_soc_i2c.u_dut.clk
+@820
+tb_soc_i2c.u_mon.rx_byte[7:0]
+[pattern_trace] 1
+[pattern_trace] 0

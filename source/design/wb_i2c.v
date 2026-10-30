@@ -71,6 +71,9 @@ module wb_i2c (
     // -------------------------------------------------------------------------
     // alexforencich i2c_master_wbs_8 instance
     // -------------------------------------------------------------------------
+    // The core has no interrupt output — tie off until we derive one
+    // from status/FIFO flags
+    assign i2c_irq = 1'b0;
     i2c_master_wbs_8 u_i2c (
         .clk         (wb_clk_i),
         .rst         (wb_rst_i),
