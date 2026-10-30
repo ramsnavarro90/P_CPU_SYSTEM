@@ -11,6 +11,8 @@
 # Generated firmware hex (copied by firmware/Makefile)
 sim/firmware.hex
 firmware/firmware.hex
+sim/flash.hex
+firmware/flash.hex
 
 # --- Firmware build outputs ----------------------------------
 firmware/*.o

@@ -22,6 +22,14 @@ define build_fw
 	$(MAKE) -C $(FIRMWARE_DIR) APP=$(1)
 endef
 
+# Bootloader goes to ROM (firmware.hex); the app goes to flash (flash.hex)
+define build_boot
+	@echo ">>> Building bootloader (ROM) + flash image APP=$(1)..."
+	$(MAKE) -C $(FIRMWARE_DIR) clean
+	$(MAKE) -C $(FIRMWARE_DIR) APP=bootloader
+	$(MAKE) -C $(FIRMWARE_DIR) flash APP=$(1)
+endef
+
 .PHONY: all sim_rom sim_sram sim_uart sim_timer \
         sim_soc sim_arithmetic sim_muldiv sim_cfg \
         sim_echo sim_timer_soc sim_i2c clean
@@ -158,6 +166,14 @@ sim_i2c_soc: tb_i2c_soc.vvp
 
 tb_i2c_soc.vvp: $(SOC_SRCS) $(TB)/i2c_slave_model.v $(TB)/tb_soc_i2c.v
 	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/i2c_slave_model.v $(TB)/tb_soc_i2c.v
+
+sim_boot: tb_boot.vvp
+	$(call build_boot,arithmetic)
+	$(VVP) $<
+
+tb_boot.vvp: $(SOC_SRCS) $(TB)/spi_flash_model.v $(TB)/tb_soc_boot.v
+	$(IVERILOG) $(FLAGS) -o $@ $(SOC_SRCS) $(TB)/spi_flash_model.v $(TB)/tb_soc_boot.v
+
 
 # -----------------------------------------------------------------------------
 clean:

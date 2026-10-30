@@ -59,3 +59,26 @@ dump: $(TARGET).elf
 
 clean:
 	rm -f *.o *.elf *.bin *.hex
+
+# -----------------------------------------------------------------------------
+# Flash image: application linked to run from SRAM (loaded by the bootloader)
+#   make flash APP=<name>   -> flash.hex (bytes + header), copied to ../sim/
+# -----------------------------------------------------------------------------
+.PHONY: flash
+
+flash_main.o: $(MAIN_SRC)
+	$(CC) $(CFLAGS) -c $< -o $@
+
+flash.elf: crt0.o flash_main.o link_sram.ld
+	$(CC) -march=rv32im -mabi=ilp32 -nostdlib -T link_sram.ld crt0.o flash_main.o -lgcc -o $@
+
+flash.bin: flash.elf
+	$(OBJCOPY) -O binary $< $@
+
+flash.hex: flash.bin
+	python3 bin2hex.py $< $@ --flash
+	cp $@ ../sim/flash.hex
+	@echo "Copied to ../sim/flash.hex"
+
+flash: flash.hex
+	@echo "Built flash image for app: $(APP)"
